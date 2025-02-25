@@ -11,7 +11,7 @@ export CLUSTER_NAME=<your-cluster-name>
 export RESOURCE_GROUP_NAME=<your-resource-group>
 
 # Connect to the cluster:
-az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME
+az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
 
 # Enable Prometheus + Grafana
 https://learn.microsoft.com/en-us/azure/aks/monitor-aks?tabs=azure-monitor
@@ -42,6 +42,13 @@ kubectl apply -f traefik/install.yaml
 kubectl port-forward -n traefik svc/traefik-dashboard-service 8080:8080   
 open http://localhost:8080/
 kubectl apply -f traefik/whoami.yaml
+
+# Key Vault Integration
+https://learn.microsoft.com/en-us/azure/aks/csi-secrets-store-driver#upgrade-an-existing-aks-cluster-with-azure-key-vault-provider-for-secrets-store-csi-driver-support
+az aks enable-addons --addons azure-keyvault-secrets-provider --name $CLUSTER_NAME --resource-group $RESOURCE_GROUP_NAME
+kubectl get pods -n kube-system -l 'app in (secrets-store-csi-driver,secrets-store-provider-azure)'
+
+
 
 # Install the AKS Store Demo
 https://github.com/Azure-Samples/aks-store-demo
@@ -80,4 +87,25 @@ az aks update --name $CLUSTER_NAME --resource-group $RESOURCE_GROUP_NAME --node-
 
 kubectl get events -A --field-selector source=karpenter -w
 
+
+
+# AKS Azure RBAC
+https://learn.microsoft.com/en-us/azure/aks/manage-azure-rbac?tabs=azure-cli#enable-azure-rbac-on-an-existing-aks-cluster
+az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --enable-azure-rbac --enable-aad --disable-local-accounts
+az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
+kubelogin convert-kubeconfig -l azurecli
+
+kubectl api-versions | grep rbac.authorization.k8s.io/v1
+
+kubectl get clusterroles
+kubectl describe clusterrole cluster-admin
+kubectl get roles --all-namespaces
+kubectl get rolebindings --all-namespaces
+kubectl get clusterrolebindings
+kubectl auth can-i --list
+kubectl auth can-i get nodes
+# give yourself RBAC Cluster Admin
+kubectl auth can-i create deployments.apps --namespace default
+az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --disable-azure-rbac --enable-local-accounts
+az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
 
