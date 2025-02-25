@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aks-blazor-config
+  namespace: blazor
+  labels:
+    app.kubernetes.io/name: aks-blazor
+    kubernetes.azure.com/generator: devhub
+data:
