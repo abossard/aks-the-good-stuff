@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: spot-cronjob
+spec:
+  schedule: "* * * * *"  # Runs every minute
+  jobTemplate:
+    spec:
+      parallelism: 20  # Number of jobs to run in parallel
+      completions: 20  # Total number of jobs to complete
+      template:
+        spec:
+          nodeSelector:
+            karpenter.sh/capacity-type: spot
+          tolerations:
+          - key: "spot-instance"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+          containers:
+          - name: counter
+            image: busybox
+            command: ["sh", "-c", "for i in $(seq 1 60); do echo $i; sleep 1; done"]
+            resources:
+              requests:
+                cpu: "10m"
+                memory: "10Mi"
+              limits:
+                cpu: "1000m"
+                memory: "1Gi"
+
+          restartPolicy: OnFailure

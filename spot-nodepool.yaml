@@ -1,0 +1,30 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: spot
+spec:
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    expireAfter: 1h
+  template:
+    spec:
+      nodeClassRef:
+        name: default
+      taints: 
+      - key: spot-instance
+        value: "true"
+        effect: NoSchedule
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values:
+        - spot
+  weight: 100
