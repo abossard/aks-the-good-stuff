@@ -71,7 +71,7 @@ kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/aks-store-demo/
 # Use the Hubble UI
 https://learn.microsoft.com/en-us/azure/aks/container-network-observability-how-to
 
-k apply -f ./hubble-ui.yaml
+kubectl apply -f ./hubble-ui.yaml
 kubectl port-forward -n kube-system svc/hubble-ui 12000:80
 
 # Add Keda
@@ -118,3 +118,5 @@ kubectl auth can-i create deployments.apps --namespace default
 az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --disable-azure-rbac --enable-local-accounts
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
 
+
+https://techcommunity.microsoft.com/blog/azuredataexplorer/how-to-monitor-azure-data-explorer-ingestion-using-diagnostic-logs-preview/1107252
