@@ -31,17 +31,16 @@ provider "azurerm" {
 
 data "azurerm_client_config" "current" {}
 
-# Creates resource group 
-resource "azurerm_resource_group" "rg" {
-  name     = "rg-${random_string.rand.result}"
-  location = var.location
+# References existing resource group
+data "azurerm_resource_group" "rg" {
+  name = var.resource-group-name
 }
 
 # Creates and configures a storage account 
 resource "azurerm_storage_account" "storage" {
   name                      = "storage${random_string.rand.result}"
   location                  = var.location
-  resource_group_name       = azurerm_resource_group.rg.name
+  resource_group_name       = data.azurerm_resource_group.rg.name
   account_kind              = "StorageV2"
   account_tier              = "Standard"
   account_replication_type  = "LRS"
@@ -53,7 +52,7 @@ resource "azurerm_storage_account" "storage" {
 resource "azurerm_container_registry" "acr" {
   name                = "acr${random_string.rand.result}"
   location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = data.azurerm_resource_group.rg.name
   sku                 = "Standard"
   admin_enabled       = false
 }
@@ -63,7 +62,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   name                 = "aks${random_string.rand.result}"
   location             = var.location
-  resource_group_name  = azurerm_resource_group.rg.name
+  resource_group_name  = data.azurerm_resource_group.rg.name
   dns_prefix           = "aks${random_string.rand.result}"
   azure_policy_enabled = true
 
@@ -106,7 +105,7 @@ resource "azurerm_role_assignment" "aks_acr" {
 resource "azurerm_key_vault" "kv" {
   name                       = "kv-${random_string.rand.result}"
   location                   = var.location
-  resource_group_name        = azurerm_resource_group.rg.name
+  resource_group_name        = data.azurerm_resource_group.rg.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = "standard"
   public_network_access_enabled = true

@@ -3,3 +3,8 @@ variable "location" {
   description = "Location"
   default     = "swedencentral"
 }
+
+variable "resource-group-name" {
+  type        = string
+  description = "Resource Group Name"
+}

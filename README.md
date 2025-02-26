@@ -3,12 +3,13 @@
 https://learn.microsoft.com/en-us/azure/aks/azure-cni-powered-by-cilium
 
 export ARM_SUBSCRIPTION_ID=<your-subscription-id>
-
+export RESOURCE_GROUP_NAME=<your-resource-group>
 terraform init
 terraform plan
-terraform apply
+terraform apply -var resource-group-name=$RESOURCE_GROUP_NAME
+
 export CLUSTER_NAME=<your-cluster-name>
-export RESOURCE_GROUP_NAME=<your-resource-group>
+
 
 # Connect to the cluster:
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
