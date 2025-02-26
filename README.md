@@ -57,10 +57,8 @@ kubectl create ns pets
 kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/aks-store-demo/main/aks-store-all-in-one.yaml -n pets
 
 
-# Install Hubble
-https://learn.microsoft.com/en-us/azure/aks/container-network-observability-how-to?tabs=cilium#install-hubble-cli
-Install the CLI
-- Or follow instructions on Windows?
+# Use the Hubble UI
+https://learn.microsoft.com/en-us/azure/aks/container-network-observability-how-to
 
 k apply -f ./hubble-ui.yaml
 kubectl port-forward -n kube-system svc/hubble-ui 12000:80
