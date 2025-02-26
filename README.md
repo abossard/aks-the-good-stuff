@@ -1,15 +1,25 @@
-
 # Create a cluster with Cilium
 https://learn.microsoft.com/en-us/azure/aks/azure-cni-powered-by-cilium
 
+## Bash
+```bash
 export ARM_SUBSCRIPTION_ID=<your-subscription-id>
 export RESOURCE_GROUP_NAME=<your-resource-group>
 terraform init
-terraform plan
 terraform apply -var resource-group-name=$RESOURCE_GROUP_NAME
 
 export CLUSTER_NAME=<your-cluster-name>
+```
 
+## PowerShell
+```powershell
+$env:ARM_SUBSCRIPTION_ID="<your-subscription-id>"
+$env:RESOURCE_GROUP_NAME="<your-resource-group>"
+terraform init
+terraform apply -var "resource-group-name=$env:RESOURCE_GROUP_NAME"
+
+$env:CLUSTER_NAME="<your-cluster-name>"
+```
 
 # Connect to the cluster:
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
