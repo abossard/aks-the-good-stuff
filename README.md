@@ -50,6 +50,8 @@ helm repo remove scubakiz
 https://doc.traefik.io/traefik/getting-started/quick-start-with-kubernetes/
 kubectl create ns traefik
 kubectl apply -f traefik/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
 kubectl port-forward -n traefik svc/traefik-dashboard-service 8080:8080   
 open http://localhost:8080/
 kubectl apply -f traefik/whoami.yaml
