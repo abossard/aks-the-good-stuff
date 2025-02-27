@@ -1,0 +1,48 @@
+trigger:
+- master
+
+resources:
+  repositories:
+  - repository: self  
+  - repository: MathTrickCore 
+    name: MathTrickCore
+    type: git
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: '0decdd6b-25a3-4045-ac38-258275e323b2'
+  imageRepository: 'mt3chained-step1'
+  containerRegistry: 'kizsamples.azurecr.io'
+  dockerfilePath: '$(Agent.BuildDirectory)/Chained/MT3Chained-Step1/Dockerfile'
+  selfRepoPath: 'Chained/MT3Chained-Step1'
+  tag: 'v$(Build.BuildId)'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build    
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - checkout: MathTrickCore 
+      path: MathTrickCore     
+    - checkout: self
+      path: $(selfRepoPath)
+    
+    - task: Docker@2      
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        buildContext: $(Agent.BuildDirectory)
+        dockerfile: $(dockerfilePath)  #$(Agent.BuildDirectory)/Chained/MT3Chained-Step1/Dockerfile
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag),latest
+
+      

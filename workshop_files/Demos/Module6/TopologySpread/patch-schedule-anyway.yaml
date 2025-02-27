@@ -1,0 +1,9 @@
+spec:  
+  template:
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1        
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: nginx-1

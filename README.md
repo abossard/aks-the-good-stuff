@@ -120,3 +120,5 @@ az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAM
 
 
 https://techcommunity.microsoft.com/blog/azuredataexplorer/how-to-monitor-azure-data-explorer-ingestion-using-diagnostic-logs-preview/1107252
+
+https://blog.r0b.io/post/getting-started-with-kube-prometheus-stack/

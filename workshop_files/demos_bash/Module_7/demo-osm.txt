@@ -1,0 +1,86 @@
+#!/usr/bin/bash
+
+CleanUp(){
+    helm uninstall chained-osm
+    helm uninstall chained-original
+    Rename-Item -Path ./mt3chained/templates/ingress -NewName _ingress    
+    Rename-Item -Path ./mt3chained/templates/traffic-policy -NewName _traffic-policy    
+    Rename-Item -Path ./mt3chained/templates/traffic-split -NewName _traffic-split
+    Rename-Item -Path ./mt3chained/templates/_no-traffic-split -NewName no-traffic-split
+    kubectl patch meshconfig osm-mesh-config -n osm-system --patch-file .\patch-enablePermissiveTraffic.yaml --type=merge
+    kubectl delete ns chained-osm
+    kubectl delete ns chained-original
+}
+
+# Change to the demo folder
+Set-Location OSM
+. "..\..\CISendMessage.ps1"
+
+# Default Application Insights IKeys
+$ai1 = "71a02f24-dffe-4cf2-a4f3-fe47f992bc42"
+$ai2 = "3e90427e-d9cf-4738-afc5-b971489adb35"
+
+StartScript
+read -pr "Before you continue with this script, please ensure you have completed the following setup steps"
+read -pr "1. Install OSM into your cluster.  See: https://release-v1-1.docs.openservicemesh.io/docs/getting_started/setup_osm/"
+read -pr "2. Create two Application Insights instances, one for each instance"
+$aioriginal = read-host "3. Enter the mt3chained-original-ai Instrumentation Key ($($ai1))" 
+if ([string]::IsNullOrWhiteSpace($aioriginal)) { $aioriginal = $ai1 }
+$aiosm  = read-host "4. Enter the mt3chained-osm-ai Instrumentation Key ($($ai2))" 
+if ([string]::IsNullOrWhiteSpace($aiosm)) { $aiosm = $ai2 }
+
+read -pr "Navigate to the Settings page"
+read -pr "Turn OFF Micro/Macro Pods (show full-size pods)"
+read -pr "Navigate to the Namespace page"
+
+read -pr "Next Step - Create chained-original namespace and install the Helm chart"
+kubectl create ns chained-original
+helm upgrade -i chained-original mt3chained --set namespace=chained-original --set ikey=$aioriginal
+read -pr "Open a browser and navigate to the Ingress Controller IP address and chained-original path"
+read -pr "For example: http://20.118.16.163/chained-original/"
+read -pr "Observe that the site comes up properly and works.  Click the 'Autopilot' checkbox."
+read -pr "Open to the Azure Portal and open the 'Live Metrics' blade of the Application Insights instance for this app"
+
+read -pr "Next Step - Create chained-osm namespace and enable OSM in that namespace"
+kubectl create ns chained-osm
+osm namespace add chained-osm
+read -pr "Next Step - Install the Helm Chart again into the chained-osm namespace"
+helm upgrade -i chained-osm mt3chained --set namespace=chained-osm --set ikey=$aiosm
+kubectl patch meshconfig osm-mesh-config -n osm-system --patch-file .\patch-enablePermissiveTraffic.yaml --type=merge
+
+read -pr "Navigate to the Services page and observe that the web service is a ClusterIP, so the site can't be reached externally"
+read -pr "Navigate to the Ingresses page and observe the chained-osm path"
+read -pr "Open a browser and navigate to the Ingress Controller IP address and chained-osm path."
+read -pr "Observe the 502 Bad Gateway error (not 404).  This path is not allowed"
+read -pr "Next Step - Deploy the IngressBackend resource"
+Rename-Item -Path ./mt3chained/templates/_ingress -NewName ingress 
+helm upgrade chained-osm mt3chained
+
+read -pr "Navigate to the Ingresses page and observe the chained-osm path"
+read -pr "Open a browser and navigate to the Ingress Controller IP address and chained-osm path."
+read -pr "Confirm that the site comes up."
+read -pr "Click the Start button.  Confirm app is working correctly"
+
+read -pr "Next Step - Turn off enablePermissiveTrafficPolicyMode"
+kubectl patch meshconfig osm-mesh-config -n osm-system --patch-file .\patch-disablePermissiveTraffic.yaml --type=merge
+
+read -pr "Click the Start button.  Confirm app is no longer working"
+read -pr "Next Step - Deploy the Traffic Policy."
+
+Rename-Item -Path ./mt3chained/templates/_traffic-policy -NewName traffic-policy 
+helm upgrade chained-osm mt3chained
+
+read -pr "Click the Start button.  Confirm app is working correctly.  Click the 'Autopilot' checkbox"
+read -pr "Open to the Azure Portal and open the 'Live Metrics' blade of the Application Insights for the osm app"
+read -pr "Confirm that traffic is flowing"
+
+read -pr "Next Step - Deploy the Traffic Split."
+Rename-Item -Path ./mt3chained/templates/_traffic-split -NewName traffic-split
+Rename-Item -Path ./mt3chained/templates/no-traffic-split -NewName _no-traffic-split
+helm upgrade chained-osm mt3chained
+
+read -pr "Observe that the NodeJS service is being called about 50% of the time"
+read -pr "Wait a few minutes and confirm in Application Insights that traffic is being split across two microservices"
+
+read -pr "Next Step - Clean up."
+CleanUp

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-dep
+  namespace: mysql-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      name: mysql-pod
+      labels:
+        app: mysql
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+        - name: copysqlfiles
+          image: alpine:3.17.0
+          args:
+            - "/bin/sh"
+            - "-c"
+            # Copy configmap files into emptyDir folder
+            - "cp /tmp1/* /initdb; cp /tmp2/* /initdb; cp /tmp3/* /initdb;"
+          volumeMounts:
+            - name: mysql-1
+              mountPath: /tmp1
+            - name: mysql-2
+              mountPath: /tmp2
+            - name: mysql-3
+              mountPath: /tmp3
+            - name: mysql-files
+              mountPath: /initdb
+      containers:
+        - name: mysql
+          image: mysql:5.7
+          env:
+            - name: MYSQL_ALLOW_EMPTY_PASSWORD
+              value: "true"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-files
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: mysql-1
+          configMap:
+            name: chained-init-fill-db-config
+        - name: mysql-2
+          configMap:
+            name: chained-init-db-config
+        - name: mysql-3
+          configMap:
+            name: chained-fill-db-config
+        - name: mysql-files
+          emptyDir: {}    

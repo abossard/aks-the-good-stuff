@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    tier: backend
+    app: myapp
+spec:
+  nodeSelector:
+    kubernetes.io/os: linux  
+  containers:
+    # Getting the latest nginx
+    # docker.io/library/nginx:latest 
+  - image: nginx
+    name: nginx
+    # imagePullPolicy: Always
+    ports:
+      - containerPort: 80
+        protocol: TCP        
+    env:
+    - name: "myvar"
+      value: RRRRRRR
+    - name: myvar4
+      value: dddddd
+    - name: myvar5
+      value: bbbbb

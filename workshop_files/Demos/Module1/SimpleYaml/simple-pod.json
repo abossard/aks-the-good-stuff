@@ -1,0 +1,42 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "nginx-pod",
+    "labels": {
+      "tier": "backend",
+      "app": "myapp"
+    }
+  },
+  "spec": {
+    "nodeSelector": {
+      "kubernetes.io/os": "linux"
+    },
+    "containers": [
+      {
+        "image": "nginx",
+        "name": "nginx",
+        "ports": [
+          {
+            "containerPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "env": [
+          {
+            "name": "myvar",
+            "value": "bbbb1"
+          },
+          {
+            "name": "myvar4",
+            "value": "dddddd"
+          },
+          {
+            "name": "myvar5",
+            "value": "aaaaa"
+          }
+        ]
+      }
+    ]
+  }
+}
