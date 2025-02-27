@@ -1,24 +1,32 @@
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
 metadata:
   name: shop-ingress
   namespace: pets
 spec:
-  rules:
-  - http:
-      paths:
-      - path: /products2
-        pathType: Prefix
-        backend:
-          service:
-            name: product-service
-            port:
-              number: 3002
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: store-front
-            port:
-              number: 80
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/products2`)
+      kind: Rule
+      middlewares:
+        - name: test-products
+      services:
+        - name: product-service
+          port: 3002
+    - match: PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: store-front
+          port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: test-products
+  namespace: pets
+spec:
+  stripPrefix:
+    prefixes:
+      - /products
+      - /products2
