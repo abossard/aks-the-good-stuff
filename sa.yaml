@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+     azure.workload.identity/client-id: 596a010f-e6bc-425e-ab47-50bc36860a66
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+    app: secrets-store-provider-azure
+    kubernetes.azure.com/managedby: aks
+  name: aks-secrets-store-provider-azure
+  namespace: kube-system

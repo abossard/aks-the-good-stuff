@@ -65,6 +65,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   resource_group_name  = data.azurerm_resource_group.rg.name
   dns_prefix           = "aks${random_string.rand.result}"
   azure_policy_enabled = true
+  oidc_issuer_enabled = true
 
   default_node_pool {
     name                = "systempool"
@@ -110,6 +111,7 @@ resource "azurerm_key_vault" "kv" {
   sku_name                   = "standard"
   public_network_access_enabled = true
   purge_protection_enabled = false
+  enable_rbac_authorization = true
 }
 
 resource "azurerm_key_vault_secret" "secret" {
