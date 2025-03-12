@@ -22,7 +22,9 @@ $env:CLUSTER_NAME="<your-cluster-name>"
 ```
 
 # Connect to the cluster:
+```bash
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
+```
 
 # Enable Prometheus + Grafana
 https://learn.microsoft.com/en-us/azure/aks/monitor-aks?tabs=azure-monitor
@@ -30,24 +32,32 @@ Go to the AKS cluster in the Azure portal and select Monitor, enable Prometheus 
 
 # Enable Advanced Container Networking
 https://learn.microsoft.com/en-us/azure/aks/container-network-observability-how-to?tabs=cilium
+```bash
 az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --enable-acns
-
+```
 
 # How to install ClusterInfo
+```bash
 helm repo add scubakiz https://scubakiz.github.io/clusterinfo/
 helm repo update
 helm install clusterinfo scubakiz/clusterinfo
+```
 
 # How to access ClusterInfo
+```bash
 kubectl port-forward svc/clusterinfo 5252:5252 -n clusterinfo
 open http://localhost:5252
+```
 
 # How to uninstall ClusterInfo
+```bash
 helm uninstall clusterinfo
 helm repo remove scubakiz
+```
 
 # Install Traefik Ingress Controller
 https://doc.traefik.io/traefik/getting-started/quick-start-with-kubernetes/
+```bash
 kubectl create ns traefik
 kubectl apply -f traefik/install.yaml
 kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
@@ -55,27 +65,30 @@ kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/con
 kubectl port-forward -n traefik svc/traefik-dashboard-service 8080:8080   
 open http://localhost:8080/
 kubectl apply -f traefik/whoami.yaml
+```
 
 # Key Vault Integration
 https://learn.microsoft.com/en-us/azure/aks/csi-secrets-store-driver#upgrade-an-existing-aks-cluster-with-azure-key-vault-provider-for-secrets-store-csi-driver-support
+```bash
 az aks enable-addons --addons azure-keyvault-secrets-provider --name $CLUSTER_NAME --resource-group $RESOURCE_GROUP_NAME
 az aks update   --name $CLUSTER_NAME --resource-group $RESOURCE_GROUP_NAME --enable-oidc-issuer
 kubectl get pods -n kube-system -l 'app in (secrets-store-csi-driver,secrets-store-provider-azure)'
-
+```
 
 
 # Install the AKS Store Demo
 https://github.com/Azure-Samples/aks-store-demo
+```bash
 kubectl create ns pets
-
 kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/aks-store-demo/main/aks-store-all-in-one.yaml -n pets
-
+```
 
 # Use the Hubble UI
 https://learn.microsoft.com/en-us/azure/aks/container-network-observability-how-to
-
+```bash
 kubectl apply -f ./hubble-ui.yaml
 kubectl port-forward -n kube-system svc/hubble-ui 12000:80
+```
 
 # Add Keda
 In the portal
@@ -90,6 +103,7 @@ https://learn.microsoft.com/en-us/azure/load-testing/quickstart-create-and-run-l
 https://learn.microsoft.com/en-us/azure/aks/node-autoprovision
 disable autoscaling of the system node pool and set it to 1 node.
 CriticalAddonsOnly true NoSchedule
+```bash
 az extension add --name aks-preview
 az extension update --name aks-preview
 az feature register --namespace "Microsoft.ContainerService" --name "NodeAutoProvisioningPreview"
@@ -98,12 +112,14 @@ az provider register --namespace Microsoft.ContainerService
 az aks update --name $CLUSTER_NAME --resource-group $RESOURCE_GROUP_NAME --node-provisioning-mode Auto --network-plugin azure --network-plugin-mode overlay --network-dataplane cilium
 
 kubectl get events -A --field-selector source=karpenter -w
-
+```
 
 
 # AKS Azure RBAC
 https://learn.microsoft.com/en-us/azure/aks/manage-azure-rbac?tabs=azure-cli#enable-azure-rbac-on-an-existing-aks-cluster
-az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --enable-azure-rbac --enable-aad --disable-local-accounts
+```bash
+az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --enable-azure-rbac --enable-aad --disable-local-ac
+counts
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
 kubelogin convert-kubeconfig -l azurecli
 
@@ -121,7 +137,7 @@ kubectl auth can-i create deployments.apps --namespace default
 az aks update --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --disable-azure-rbac --enable-local-accounts
 az aks update --resource-group rg-anbo --name aksb3ux --disable-azure-rbac --enable-local-accounts
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $CLUSTER_NAME --overwrite-existing
-
+```
 
 https://techcommunity.microsoft.com/blog/azuredataexplorer/how-to-monitor-azure-data-explorer-ingestion-using-diagnostic-logs-preview/1107252
 
