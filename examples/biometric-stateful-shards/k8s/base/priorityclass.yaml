@@ -1,0 +1,7 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: biometric-high-priority
+value: 1000000
+globalDefault: false
+description: "High priority for biometric shard workloads that require all instances to be running"

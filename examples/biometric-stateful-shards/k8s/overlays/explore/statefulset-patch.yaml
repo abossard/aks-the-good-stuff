@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: biometric-shard
+  namespace: biometric-shards
+spec:
+  template:
+    spec:
+      # Affinity to prefer auto-provisioned nodes during explore phase
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - biometric-explore
+          - weight: 80
+            preference:
+              matchExpressions:
+              - key: phase
+                operator: In
+                values:
+                - exploration
+          # Avoid system nodes
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: kubernetes.azure.com/mode
+                operator: NotIn
+                values:
+                - system

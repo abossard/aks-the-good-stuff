@@ -1,0 +1,17 @@
+apiVersion: karpenter.azure.com/v1alpha2
+kind: AKSNodeClass
+metadata:
+  name: biometric-stable
+spec:
+  # Image family for nodes
+  imageFamily: Ubuntu2204
+  # OS disk configuration
+  osDiskSizeGB: 128
+  # Tags for cost tracking and management
+  tags:
+    Environment: production
+    Workload: biometric-shards
+    ManagedBy: karpenter
+    CostCenter: engineering
+    Stability: pinned
+    DisruptionProtection: "true"

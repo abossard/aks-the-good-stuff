@@ -1,0 +1,17 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: biometric-shard-pdb
+  namespace: biometric-shards
+  labels:
+    app.kubernetes.io/name: biometric-shards
+    app.kubernetes.io/component: pdb
+spec:
+  # All 10 shards must be available (system is down if any one is missing)
+  minAvailable: 10
+  selector:
+    matchLabels:
+      app: biometric-shard
+  # Unhealthy pod eviction policy (K8s 1.26+)
+  # Allow eviction of unhealthy pods to prevent deadlock
+  unhealthyPodEvictionPolicy: AlwaysAllow

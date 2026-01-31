@@ -1,0 +1,10 @@
+# Kustomize configuration for custom resource replacements
+nameReference:
+- kind: PriorityClass
+  fieldSpecs:
+  - path: spec/priorityClassName
+    kind: StatefulSet
+- kind: Service
+  fieldSpecs:
+  - path: spec/serviceName
+    kind: StatefulSet

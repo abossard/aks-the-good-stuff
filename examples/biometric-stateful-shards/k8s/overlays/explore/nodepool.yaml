@@ -1,0 +1,67 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: biometric-explore
+spec:
+  # Conservative disruption settings during exploration
+  disruption:
+    # Reduce consolidation churn during exploration phase
+    consolidationPolicy: WhenEmpty
+    # Longer expiration to allow stable observation
+    expireAfter: 168h  # 7 days
+  template:
+    metadata:
+      labels:
+        workload: biometric-explore
+        phase: exploration
+    spec:
+      nodeClassRef:
+        name: biometric-explore
+      # Requirements to select appropriate instance types for 32Gi pods
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values:
+        - on-demand  # Use on-demand for stability during exploration
+      # Memory-optimized instance types suitable for packing multiple 32Gi pods
+      # These are curated for AKS to allow 2-4 pods per node
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values:
+        # Standard_E series (memory-optimized) - good for 32Gi workloads
+        - Standard_E8s_v5      # 64Gi RAM - fits 2 pods
+        - Standard_E16s_v5     # 128Gi RAM - fits 4 pods
+        - Standard_E20s_v5     # 160Gi RAM - fits 5 pods
+        - Standard_E32s_v5     # 256Gi RAM - fits 8 pods
+        # Standard_D series (general purpose with good memory)
+        - Standard_D16s_v5     # 64Gi RAM - fits 2 pods
+        - Standard_D32s_v5     # 128Gi RAM - fits 4 pods
+        - Standard_D48s_v5     # 192Gi RAM - fits 6 pods
+        # Standard_M series (memory-optimized, larger)
+        - Standard_M8ms        # 218Gi RAM - fits 6 pods
+      # Exclude spot instances during exploration for stability
+      - key: karpenter.azure.com/sku-family
+        operator: NotIn
+        values:
+        - A  # Exclude A-series (basic)
+      # Zone spreading
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values:
+        - eastus-1
+        - eastus-2
+        - eastus-3
+  # Higher weight for exploration nodes
+  weight: 50
+  # Limits for exploration phase
+  limits:
+    cpu: "200"
+    memory: "1000Gi"

@@ -1,0 +1,199 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: biometric-shard
+  namespace: biometric-shards
+  labels:
+    app.kubernetes.io/name: biometric-shards
+    app.kubernetes.io/component: statefulset
+spec:
+  serviceName: biometric-shards
+  replicas: 10
+  # OnDelete update strategy for controlled, manual updates (VM-like)
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: biometric-shard
+  template:
+    metadata:
+      labels:
+        app: biometric-shard
+        app.kubernetes.io/name: biometric-shards
+        app.kubernetes.io/component: shard
+      annotations:
+        # For Cluster Autoscaler: prevent eviction of these critical pods
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      priorityClassName: biometric-high-priority
+      # Longer grace period for graceful shutdown (VM-like)
+      terminationGracePeriodSeconds: 300
+      # Extend tolerations for node issues to reduce rescheduling churn (VM-like)
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      # Topology spread for balanced placement across nodes/zones
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: biometric-shard
+      - maxSkew: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: biometric-shard
+      containers:
+      - name: biometric-app
+        # Using the existing CatManager API service as demo app
+        image: mcr.microsoft.com/dotnet/aspnet:9.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -c
+        - |
+          cat > /app/app.dll << 'EOF'
+          #!/bin/bash
+          # Placeholder - in production, this would be the actual CatManager API image
+          # For this demo, we create a simple HTTP server
+          echo "Starting biometric shard $HOSTNAME..."
+          
+          # Install dependencies
+          apt-get update -qq && apt-get install -y -qq curl dnsutils netcat-openbsd > /dev/null 2>&1
+          
+          # Start a simple HTTP server
+          mkdir -p /tmp/www
+          cd /tmp/www
+          
+          cat > index.html << 'INDEXEOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>Biometric Shard</title></head>
+          <body>
+            <h1>Biometric Shard: HOSTNAME_PLACEHOLDER</h1>
+            <p>Memory: 32Gi (Guaranteed QoS)</p>
+            <p>Status: Ready</p>
+          </body>
+          </html>
+          INDEXEOF
+          
+          sed -i "s/HOSTNAME_PLACEHOLDER/$HOSTNAME/g" index.html
+          
+          # Health endpoints
+          echo "OK" > startup
+          echo "OK" > ready
+          echo "OK" > health
+          
+          # Route endpoint - returns which shard handles this key
+          cat > route.sh << 'ROUTEEOF'
+          #!/bin/bash
+          KEY="${1:-default}"
+          # Simple hash-based routing to shard 0-9
+          SHARD=$(($(echo -n "$KEY" | md5sum | cut -c1-8 | sed 's/[a-f]/1/g' | sed 's/[^0-9]//g' | cut -c1-9) % 10))
+          echo "{\"key\":\"$KEY\",\"shard\":$SHARD,\"hostname\":\"$HOSTNAME\"}"
+          ROUTEEOF
+          chmod +x route.sh
+          
+          # Start HTTP server using busybox httpd on port 8080
+          exec busybox httpd -f -p 8080 -h /tmp/www
+          EOF
+          chmod +x /app/app.dll
+          exec /app/app.dll
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: SHARD_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: PEER_SERVICE
+          value: "biometric-shards.biometric-shards.svc.cluster.local"
+        - name: TOTAL_SHARDS
+          value: "10"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: gossip
+          containerPort: 7946
+          protocol: TCP
+        # Guaranteed QoS: requests == limits
+        resources:
+          requests:
+            memory: "32Gi"
+            cpu: "2000m"
+          limits:
+            memory: "32Gi"
+            cpu: "2000m"
+        # Startup probe: allow generous startup time
+        startupProbe:
+          httpGet:
+            path: /startup
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+        # Readiness probe: pod is ready when it can serve traffic
+        # In production, this should check cluster formation (all peers reachable)
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        # NO liveness probe by default to avoid kubelet-induced restarts (VM-like)
+        # Uncomment only if your app has memory leaks or other issues requiring restarts
+        # livenessProbe:
+        #   httpGet:
+        #     path: /health
+        #     port: 8080
+        #   initialDelaySeconds: 60
+        #   periodSeconds: 30
+        #   timeoutSeconds: 5
+        #   successThreshold: 1
+        #   failureThreshold: 5
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        # PreStop hook for graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - |
+                echo "Graceful shutdown initiated for $HOSTNAME"
+                # In production: deregister from cluster, flush data, etc.
+                sleep 30
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: biometric-shard
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      # Storage class can be overridden via kustomize
+      # storageClassName: default
+      resources:
+        requests:
+          storage: 100Gi
