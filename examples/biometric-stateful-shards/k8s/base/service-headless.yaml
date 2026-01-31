@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: biometric-shards
+  namespace: biometric-shards
+  labels:
+    app.kubernetes.io/name: biometric-shards
+    app.kubernetes.io/component: headless-service
+spec:
+  clusterIP: None
+  selector:
+    app: biometric-shard
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: gossip
+    port: 7946
+    targetPort: 7946
+    protocol: TCP
+  publishNotReadyAddresses: true

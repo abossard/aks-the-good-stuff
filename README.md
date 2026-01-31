@@ -114,6 +114,34 @@ az aks update --name $CLUSTER_NAME --resource-group $RESOURCE_GROUP_NAME --node-
 kubectl get events -A --field-selector source=karpenter -w
 ```
 
+# Learning Paths & Tutorials
+
+## Biometric Stateful Shards - VM-Style Workload with Node Auto Provisioning
+A comprehensive tutorial on running stateful, VM-like workloads on AKS with Karpenter/NAP for SKU optimization.
+
+**Location:** `examples/biometric-stateful-shards/`
+
+**What you'll learn:**
+- How to use AKS Node Auto Provisioning (Karpenter) to find optimal node SKUs
+- Implementing "VM-like" behavior in Kubernetes (Guaranteed QoS, OnDelete updates, minimal disruption)
+- Two-phase deployment: Explore (SKU optimization) → Stable (production pinned)
+- StatefulSet patterns for sharded workloads that require all instances running
+- PodDisruptionBudgets, topology spreading, and anti-eviction strategies
+- Cost monitoring with aks-node-viewer and reserved instance optimization
+
+**Quick start:**
+```bash
+cd examples/biometric-stateful-shards
+./scripts/quickstart.sh
+# Or follow the detailed README.md
+```
+
+**Use cases:**
+- Financial services sharding (consistent hashing)
+- Biometric/search indexes (partitioned data)
+- Distributed caches (Memcached, Redis Cluster)
+- Legacy stateful apps migrating to Kubernetes
+
 
 # AKS Azure RBAC
 https://learn.microsoft.com/en-us/azure/aks/manage-azure-rbac?tabs=azure-cli#enable-azure-rbac-on-an-existing-aks-cluster

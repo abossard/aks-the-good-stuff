@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: biometric-shards
+  labels:
+    app.kubernetes.io/name: biometric-shards
+    app.kubernetes.io/component: namespace

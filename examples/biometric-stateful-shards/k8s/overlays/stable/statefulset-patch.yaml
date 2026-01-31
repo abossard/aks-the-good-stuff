@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: biometric-shard
+  namespace: biometric-shards
+  annotations:
+    # Karpenter: do not disrupt these pods
+    karpenter.sh/do-not-disrupt: "true"
+spec:
+  template:
+    metadata:
+      annotations:
+        # Additional protection annotations
+        karpenter.sh/do-not-disrupt: "true"
+    spec:
+      # Affinity to REQUIRE stable nodes
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - biometric-stable
+              - key: phase
+                operator: In
+                values:
+                - production
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: disruption
+                operator: In
+                values:
+                - protected
+      # Toleration for the dedicated taint
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "biometric"
+        operator: "Equal"
+        value: "reserved"
+        effect: "NoSchedule"

@@ -1,0 +1,59 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: biometric-stable
+spec:
+  # Maximum disruption prevention for stable phase
+  disruption:
+    # Do NOT consolidate these nodes automatically
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: Never
+    # Do NOT expire these nodes
+    # expireAfter: Never  # Commented out - set manually if needed
+  template:
+    metadata:
+      labels:
+        workload: biometric-stable
+        phase: production
+        disruption: protected
+    spec:
+      nodeClassRef:
+        name: biometric-stable
+      # Taint to dedicate these nodes to biometric workload
+      taints:
+      - key: biometric
+        value: reserved
+        effect: NoSchedule
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values:
+        - on-demand  # Only on-demand for production stability
+      # Pin to specific instance type chosen during exploration
+      # Default to Standard_E16s_v5 (128Gi) which fits 4 pods nicely
+      # Adjust based on your exploration phase findings
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values:
+        - Standard_E16s_v5  # 128Gi RAM, 16 vCPU - fits 4 pods @ 32Gi each
+      # Ensure zone spreading for HA
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values:
+        - eastus-1
+        - eastus-2
+        - eastus-3
+  # High weight for stable nodes
+  weight: 100
+  # Limits for stable phase
+  limits:
+    cpu: "100"
+    memory: "500Gi"

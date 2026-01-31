@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: biometric-shard
+  namespace: biometric-shards
+  labels:
+    app.kubernetes.io/name: biometric-shards
+    app.kubernetes.io/component: statefulset
+spec:
+  serviceName: biometric-shards
+  replicas: 10
+  # OnDelete update strategy for controlled, manual updates (VM-like)
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: biometric-shard
+  template:
+    metadata:
+      labels:
+        app: biometric-shard
+        app.kubernetes.io/name: biometric-shards
+        app.kubernetes.io/component: shard
+      annotations:
+        # For Cluster Autoscaler: prevent eviction of these critical pods
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      priorityClassName: biometric-high-priority
+      # Longer grace period for graceful shutdown (VM-like)
+      terminationGracePeriodSeconds: 300
+      # Extend tolerations for node issues to reduce rescheduling churn (VM-like)
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      # Topology spread for balanced placement across nodes/zones
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: biometric-shard
+      - maxSkew: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: biometric-shard
+      containers:
+      - name: biometric-app
+        # Simple demo using nginx to simulate biometric shard
+        # In production, replace with actual application image
+        image: nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Install dependencies
+          apk add --no-cache curl bind-tools netcat-openbsd bash
+          
+          # Create web content directory
+          mkdir -p /usr/share/nginx/html
+          
+          # Create index page
+          cat > /usr/share/nginx/html/index.html << 'INDEXEOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>Biometric Shard</title></head>
+          <body>
+            <h1>Biometric Shard: HOSTNAME_PLACEHOLDER</h1>
+            <p>Memory: 32Gi (Guaranteed QoS)</p>
+            <p>Status: Ready</p>
+            <p>Shard ID: SHARD_ID_PLACEHOLDER</p>
+          </body>
+          </html>
+          INDEXEOF
+          
+          sed -i "s/HOSTNAME_PLACEHOLDER/$HOSTNAME/g" /usr/share/nginx/html/index.html
+          sed -i "s/SHARD_ID_PLACEHOLDER/$SHARD_ID/g" /usr/share/nginx/html/index.html
+          
+          # Health endpoints
+          echo "OK" > /usr/share/nginx/html/startup
+          echo "OK" > /usr/share/nginx/html/ready
+          echo "OK" > /usr/share/nginx/html/health
+          
+          # Configure nginx to listen on port 8080
+          cat > /etc/nginx/conf.d/default.conf << 'NGINXEOF'
+          server {
+              listen 8080;
+              server_name _;
+              location / {
+                  root /usr/share/nginx/html;
+                  index index.html;
+              }
+          }
+          NGINXEOF
+          
+          # Start nginx
+          exec nginx -g 'daemon off;'
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: SHARD_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: PEER_SERVICE
+          value: "biometric-shards.biometric-shards.svc.cluster.local"
+        - name: TOTAL_SHARDS
+          value: "10"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: gossip
+          containerPort: 7946
+          protocol: TCP
+        # Guaranteed QoS: requests == limits
+        resources:
+          requests:
+            memory: "32Gi"
+            cpu: "2000m"
+          limits:
+            memory: "32Gi"
+            cpu: "2000m"
+        # Startup probe: allow generous startup time
+        startupProbe:
+          httpGet:
+            path: /startup
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+        # Readiness probe: pod is ready when it can serve traffic
+        # In production, this should check cluster formation (all peers reachable)
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        # NO liveness probe by default to avoid kubelet-induced restarts (VM-like)
+        # Uncomment only if your app has memory leaks or other issues requiring restarts
+        # livenessProbe:
+        #   httpGet:
+        #     path: /health
+        #     port: 8080
+        #   initialDelaySeconds: 60
+        #   periodSeconds: 30
+        #   timeoutSeconds: 5
+        #   successThreshold: 1
+        #   failureThreshold: 5
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        # PreStop hook for graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - |
+                echo "Graceful shutdown initiated for $HOSTNAME"
+                # In production: deregister from cluster, flush data, etc.
+                sleep 30
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: biometric-shard
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      # Storage class can be overridden via kustomize
+      # storageClassName: default
+      resources:
+        requests:
+          storage: 100Gi
