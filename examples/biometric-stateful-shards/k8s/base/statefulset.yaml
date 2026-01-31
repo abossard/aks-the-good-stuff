@@ -54,27 +54,22 @@ spec:
             app: biometric-shard
       containers:
       - name: biometric-app
-        # Using the existing CatManager API service as demo app
-        image: mcr.microsoft.com/dotnet/aspnet:9.0
+        # Simple demo using nginx to simulate biometric shard
+        # In production, replace with actual application image
+        image: nginx:1.27-alpine
         imagePullPolicy: IfNotPresent
         command:
-        - /bin/bash
+        - /bin/sh
         - -c
         - |
-          cat > /app/app.dll << 'EOF'
-          #!/bin/bash
-          # Placeholder - in production, this would be the actual CatManager API image
-          # For this demo, we create a simple HTTP server
-          echo "Starting biometric shard $HOSTNAME..."
-          
           # Install dependencies
-          apt-get update -qq && apt-get install -y -qq curl dnsutils netcat-openbsd > /dev/null 2>&1
+          apk add --no-cache curl bind-tools netcat-openbsd bash
           
-          # Start a simple HTTP server
-          mkdir -p /tmp/www
-          cd /tmp/www
+          # Create web content directory
+          mkdir -p /usr/share/nginx/html
           
-          cat > index.html << 'INDEXEOF'
+          # Create index page
+          cat > /usr/share/nginx/html/index.html << 'INDEXEOF'
           <!DOCTYPE html>
           <html>
           <head><title>Biometric Shard</title></head>
@@ -82,32 +77,33 @@ spec:
             <h1>Biometric Shard: HOSTNAME_PLACEHOLDER</h1>
             <p>Memory: 32Gi (Guaranteed QoS)</p>
             <p>Status: Ready</p>
+            <p>Shard ID: SHARD_ID_PLACEHOLDER</p>
           </body>
           </html>
           INDEXEOF
           
-          sed -i "s/HOSTNAME_PLACEHOLDER/$HOSTNAME/g" index.html
+          sed -i "s/HOSTNAME_PLACEHOLDER/$HOSTNAME/g" /usr/share/nginx/html/index.html
+          sed -i "s/SHARD_ID_PLACEHOLDER/$SHARD_ID/g" /usr/share/nginx/html/index.html
           
           # Health endpoints
-          echo "OK" > startup
-          echo "OK" > ready
-          echo "OK" > health
+          echo "OK" > /usr/share/nginx/html/startup
+          echo "OK" > /usr/share/nginx/html/ready
+          echo "OK" > /usr/share/nginx/html/health
           
-          # Route endpoint - returns which shard handles this key
-          cat > route.sh << 'ROUTEEOF'
-          #!/bin/bash
-          KEY="${1:-default}"
-          # Simple hash-based routing to shard 0-9
-          SHARD=$(($(echo -n "$KEY" | md5sum | cut -c1-8 | sed 's/[a-f]/1/g' | sed 's/[^0-9]//g' | cut -c1-9) % 10))
-          echo "{\"key\":\"$KEY\",\"shard\":$SHARD,\"hostname\":\"$HOSTNAME\"}"
-          ROUTEEOF
-          chmod +x route.sh
+          # Configure nginx to listen on port 8080
+          cat > /etc/nginx/conf.d/default.conf << 'NGINXEOF'
+          server {
+              listen 8080;
+              server_name _;
+              location / {
+                  root /usr/share/nginx/html;
+                  index index.html;
+              }
+          }
+          NGINXEOF
           
-          # Start HTTP server using busybox httpd on port 8080
-          exec busybox httpd -f -p 8080 -h /tmp/www
-          EOF
-          chmod +x /app/app.dll
-          exec /app/app.dll
+          # Start nginx
+          exec nginx -g 'daemon off;'
         env:
         - name: ASPNETCORE_URLS
           value: "http://+:8080"

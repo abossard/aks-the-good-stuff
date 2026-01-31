@@ -150,6 +150,19 @@ az aks get-credentials \
   --overwrite-existing
 ```
 
+## Quick Start
+
+For an interactive guided experience, use the quickstart script:
+
+```bash
+cd examples/biometric-stateful-shards
+./scripts/quickstart.sh
+```
+
+This script provides a menu-driven interface for all deployment phases and common operations.
+
+For a detailed step-by-step walkthrough, continue reading below.
+
 ## Phase 1: Explore - SKU Optimization
 
 In this phase, we deploy the workload with a NodePool that allows multiple instance types. Karpenter will choose the best fit, and we'll observe the packing efficiency.
