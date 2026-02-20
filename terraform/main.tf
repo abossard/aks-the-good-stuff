@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "4.20.0"
+      version = "4.23.0"
     }
     random = {
       source = "hashicorp/random"
@@ -32,15 +32,16 @@ provider "azurerm" {
 data "azurerm_client_config" "current" {}
 
 # References existing resource group
-data "azurerm_resource_group" "rg" {
+resource "azurerm_resource_group" "rg" {
   name = var.resource-group-name
+  location = var.location
 }
 
 # Creates and configures a storage account 
 resource "azurerm_storage_account" "storage" {
   name                      = "storage${random_string.rand.result}"
   location                  = var.location
-  resource_group_name       = data.azurerm_resource_group.rg.name
+  resource_group_name       = azurerm_resource_group.rg.name
   account_kind              = "StorageV2"
   account_tier              = "Standard"
   account_replication_type  = "LRS"
@@ -52,7 +53,7 @@ resource "azurerm_storage_account" "storage" {
 resource "azurerm_container_registry" "acr" {
   name                = "acr${random_string.rand.result}"
   location            = var.location
-  resource_group_name = data.azurerm_resource_group.rg.name
+  resource_group_name = azurerm_resource_group.rg.name
   sku                 = "Standard"
   admin_enabled       = false
 }
@@ -62,11 +63,15 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   name                 = "aks${random_string.rand.result}"
   location             = var.location
-  resource_group_name  = data.azurerm_resource_group.rg.name
+  resource_group_name  = azurerm_resource_group.rg.name
   dns_prefix           = "aks${random_string.rand.result}"
   azure_policy_enabled = true
   oidc_issuer_enabled = true
 
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+  
   default_node_pool {
     name                = "systempool"
     node_count          = 1
@@ -75,6 +80,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
     max_count           = 3
     vm_size             = "Standard_D2as_v5"
     zones               = ["1"]
+    node_labels = {
+      "node.kubernetes.io/system-nodes" = "true"
+    }
   }
 
   identity {
@@ -94,6 +102,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     scale_down_unready          = "1m"
     skip_nodes_with_system_pods = true
   }
+
+  lifecycle {
+    ignore_changes = [
+      default_node_pool[0].node_count,
+    ]
+  }
 }
 
 # Gives the AKS Cluster ACR pull role over the AKS Cluster
@@ -106,7 +120,7 @@ resource "azurerm_role_assignment" "aks_acr" {
 resource "azurerm_key_vault" "kv" {
   name                       = "kv-${random_string.rand.result}"
   location                   = var.location
-  resource_group_name        = data.azurerm_resource_group.rg.name
+  resource_group_name        = azurerm_resource_group.rg.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = "standard"
   public_network_access_enabled = true
